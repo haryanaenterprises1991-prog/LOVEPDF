@@ -478,9 +478,9 @@ const PhotoTextTool = () => {
   const [box, setBox] = useState({ x: 0.2, y: 0.05, w: 0.6, h: 0.9 }); // crop rect (normalized)
   const [photo, setPhoto] = useState(null);          // cropped image { url, w, h }
   const [extraWhite, setExtraWhite] = useState(false);
-  const [font, setFont] = useState(FONTS[1].id);     // shared font family
-  const [name, setName] = useState({ text: '', size: 6, color: '#0f172a', pos: { x: 0.5, y: 0.5 } });
-  const [dob, setDob] = useState({ text: '', size: 4, color: '#0f172a', pos: { x: 0.5, y: 0.6 } });
+  const [font, setFont] = useState(FONTS[4].id);     // shared font family (default: bold Impact/Arial Black)
+  const [name, setName] = useState({ text: '', size: 6, color: '#0f172a', scaleX: 1, pos: { x: 0.5, y: 0.5 } });
+  const [dob, setDob] = useState({ text: '', size: 4, color: '#0f172a', scaleX: 1, pos: { x: 0.5, y: 0.6 } });
   const [outline, setOutline] = useState(false);
   const stageRef = useRef(null);
   const dragRef = useRef(null);
@@ -552,6 +552,12 @@ const PhotoTextTool = () => {
       setter((prev) => ({ ...prev, size: Math.max(min, Math.min(max, +(d.size0 + delta).toFixed(1))) }));
       return;
     }
+    if (d.mode === 'stretch') {
+      // Widen/narrow the text horizontally WITHOUT changing its height.
+      const dsx = ((e.clientX - d.startX) / d.rw) * 3;
+      setter((prev) => ({ ...prev, scaleX: Math.max(0.5, Math.min(3, +(d.sx0 + dsx).toFixed(2))) }));
+      return;
+    }
     const nx = Math.max(0, Math.min(1, d.ox + (e.clientX - d.startX) / d.rw));
     const ny = Math.max(0, Math.min(1, d.oy + (e.clientY - d.startY) / d.rh));
     setter((prev) => ({ ...prev, pos: { x: nx, y: ny } }));
@@ -562,7 +568,7 @@ const PhotoTextTool = () => {
     if (!stageRef.current) return;
     const rect = stageRef.current.getBoundingClientRect();
     const t = which === 'name' ? name : dob;
-    dragRef.current = { which, mode, startX: e.clientX, startY: e.clientY, ox: t.pos.x, oy: t.pos.y, size0: t.size, rw: rect.width, rh: rect.height };
+    dragRef.current = { which, mode, startX: e.clientX, startY: e.clientY, ox: t.pos.x, oy: t.pos.y, size0: t.size, sx0: t.scaleX || 1, rw: rect.width, rh: rect.height };
     window.addEventListener('pointermove', onDrag);
     window.addEventListener('pointerup', endDrag);
   };
@@ -581,11 +587,12 @@ const PhotoTextTool = () => {
     const drawText = (t) => {
       if (!t.text.trim()) return;
       const fontPx = (W * t.size) / 100;
-      ctx.font = `${fontPx}px ${font}`;
+      const str = t.text.trim().toUpperCase();
+      ctx.font = `bold ${fontPx}px ${font}`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const x = t.pos.x * W; const y = t.pos.y * H;
-      if (outline) { ctx.lineWidth = Math.max(2, fontPx / 10); ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.strokeText(t.text.trim(), x, y); }
-      ctx.fillStyle = t.color; ctx.fillText(t.text.trim(), x, y);
+      if (outline) { ctx.lineWidth = Math.max(2, fontPx / 10); ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.strokeText(str, x, y); }
+      ctx.fillStyle = t.color; ctx.fillText(str, x, y);
     };
     drawText(name); drawText(dob);
     const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.95));
@@ -645,7 +652,8 @@ const PhotoTextTool = () => {
       style={{
         left: t.pos.x * stageW, top: t.pos.y * stageH, transform: 'translate(-50%, -50%)',
         fontFamily: font, fontSize: (stageW * t.size) / 100, lineHeight: 1,
-        color: t.text.trim() ? t.color : '#94a3b8', opacity: t.text.trim() ? 1 : 0.7,
+        fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.02em',
+        color: t.color,
         ...(outline ? { textShadow: '0 0 2px rgba(0,0,0,0.7),0 0 2px rgba(0,0,0,0.7)' } : {}),
       }}>
       {t.text.trim()}
