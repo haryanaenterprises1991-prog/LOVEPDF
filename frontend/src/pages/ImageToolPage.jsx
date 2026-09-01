@@ -473,52 +473,96 @@ const FONTS = [
 const PhotoTextTool = () => {
   const [step, setStep] = useState('upload');        // upload | crop | edit
   const [file, setFile] = useState(null);
-  const [src, setSrc] = useState(null);              // original object URL (for cropper)
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [areaPx, setAreaPx] = useState(null);
+  const [src, setSrc] = useState(null);              // original object URL
+  const [natural, setNatural] = useState({ w: 1, h: 1 }); // source image natural size
+  const [box, setBox] = useState({ x: 0.2, y: 0.05, w: 0.6, h: 0.9 }); // crop rect (normalized)
   const [photo, setPhoto] = useState(null);          // cropped image { url, w, h }
   const [extraWhite, setExtraWhite] = useState(false);
   const [font, setFont] = useState(FONTS[1].id);     // shared font family
-  const [name, setName] = useState({ text: '', size: 7, color: '#0f172a', pos: { x: 0.5, y: 0.88 } });
-  const [dob, setDob] = useState({ text: '', size: 4.5, color: '#0f172a', pos: { x: 0.5, y: 0.95 } });
+  const [name, setName] = useState({ text: '', size: 6, color: '#0f172a', pos: { x: 0.5, y: 0.88 } });
+  const [dob, setDob] = useState({ text: '', size: 4, color: '#0f172a', pos: { x: 0.5, y: 0.95 } });
   const [outline, setOutline] = useState(false);
   const stageRef = useRef(null);
   const dragRef = useRef(null);
-  const EXTRA_FRAC = 0.30;
+  const cropStageRef = useRef(null);
+  const cropDrag = useRef(null);
+  // Extra white band height as a fraction of the photo WIDTH, driven by the
+  // chosen text sizes (so the band is only as tall as the text needs).
+  const whiteBandFrac = () => ((name.size + dob.size) / 100) * 1.5;
 
   const onFiles = (list) => {
-    const f = list[0]; setFile(f); setSrc(URL.createObjectURL(f));
-    setStep('crop'); setZoom(1); setCrop({ x: 0, y: 0 });
+    const f = list[0]; setFile(f);
+    const url = URL.createObjectURL(f); setSrc(url);
+    setBox({ x: 0.2, y: 0.05, w: 0.6, h: 0.9 });
+    const im = new Image();
+    im.onload = () => { setNatural({ w: im.naturalWidth, h: im.naturalHeight }); setStep('crop'); };
+    im.src = url;
   };
-  const onCropComplete = useCallback((_, px) => setAreaPx(px), []);
+
+  // Custom crop box: drag to move, pull corner grips to resize (no zoom).
+  const onCropMove = (e) => {
+    const d = cropDrag.current; if (!d) return;
+    const dnx = (e.clientX - d.startX) / d.rw;
+    const dny = (e.clientY - d.startY) / d.rh;
+    const MIN = 0.12;
+    const b = { ...d.box0 };
+    if (d.mode === 'move') {
+      b.x = Math.max(0, Math.min(1 - d.box0.w, d.box0.x + dnx));
+      b.y = Math.max(0, Math.min(1 - d.box0.h, d.box0.y + dny));
+    } else {
+      let { x, y, w, h } = d.box0; const hd = d.handle;
+      if (hd.includes('e')) w = Math.max(MIN, Math.min(1 - x, d.box0.w + dnx));
+      if (hd.includes('s')) h = Math.max(MIN, Math.min(1 - y, d.box0.h + dny));
+      if (hd.includes('w')) { const nx = Math.max(0, Math.min(d.box0.x + d.box0.w - MIN, d.box0.x + dnx)); w = d.box0.w + (d.box0.x - nx); x = nx; }
+      if (hd.includes('n')) { const ny = Math.max(0, Math.min(d.box0.y + d.box0.h - MIN, d.box0.y + dny)); h = d.box0.h + (d.box0.y - ny); y = ny; }
+      b.x = x; b.y = y; b.w = w; b.h = h;
+    }
+    setBox(b);
+  };
+  const endCrop = () => { cropDrag.current = null; window.removeEventListener('pointermove', onCropMove); window.removeEventListener('pointerup', endCrop); };
+  const startCrop = (mode, handle, e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!cropStageRef.current) return;
+    const rect = cropStageRef.current.getBoundingClientRect();
+    cropDrag.current = { mode, handle, startX: e.clientX, startY: e.clientY, box0: { ...box }, rw: rect.width, rh: rect.height };
+    window.addEventListener('pointermove', onCropMove);
+    window.addEventListener('pointerup', endCrop);
+  };
 
   const applyCrop = async () => {
-    if (!areaPx) return;
     const img = new Image(); img.src = src;
     await new Promise((r, j) => { img.onload = r; img.onerror = j; });
+    const sx = box.x * natural.w, sy = box.y * natural.h, sw = box.w * natural.w, sh = box.h * natural.h;
     const canvas = document.createElement('canvas');
-    canvas.width = Math.round(areaPx.width); canvas.height = Math.round(areaPx.height);
+    canvas.width = Math.max(1, Math.round(sw)); canvas.height = Math.max(1, Math.round(sh));
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, areaPx.x, areaPx.y, areaPx.width, areaPx.height, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
     setPhoto({ url: canvas.toDataURL('image/jpeg', 0.95), w: canvas.width, h: canvas.height });
     setStep('edit');
   };
 
-  // Drag the name / dob text around the preview stage (mouse + touch).
+  // Drag to move OR drag the corner grip to resize the name / dob text.
   const onDrag = (e) => {
     const d = dragRef.current; if (!d) return;
+    const setter = d.which === 'name' ? setName : setDob;
+    if (d.mode === 'resize') {
+      const delta = (((e.clientX - d.startX) + (e.clientY - d.startY)) / 2) / d.rw * 100;
+      const min = d.which === 'name' ? 3 : 2;
+      const max = d.which === 'name' ? 16 : 14;
+      setter((prev) => ({ ...prev, size: Math.max(min, Math.min(max, +(d.size0 + delta).toFixed(1))) }));
+      return;
+    }
     const nx = Math.max(0, Math.min(1, d.ox + (e.clientX - d.startX) / d.rw));
     const ny = Math.max(0, Math.min(1, d.oy + (e.clientY - d.startY) / d.rh));
-    (d.which === 'name' ? setName : setDob)((prev) => ({ ...prev, pos: { x: nx, y: ny } }));
+    setter((prev) => ({ ...prev, pos: { x: nx, y: ny } }));
   };
   const endDrag = () => { dragRef.current = null; window.removeEventListener('pointermove', onDrag); window.removeEventListener('pointerup', endDrag); };
-  const startDrag = (which, e) => {
+  const startDrag = (which, mode, e) => {
     e.preventDefault(); e.stopPropagation();
     if (!stageRef.current) return;
     const rect = stageRef.current.getBoundingClientRect();
-    const cur = which === 'name' ? name.pos : dob.pos;
-    dragRef.current = { which, startX: e.clientX, startY: e.clientY, ox: cur.x, oy: cur.y, rw: rect.width, rh: rect.height };
+    const t = which === 'name' ? name : dob;
+    dragRef.current = { which, mode, startX: e.clientX, startY: e.clientY, ox: t.pos.x, oy: t.pos.y, size0: t.size, rw: rect.width, rh: rect.height };
     window.addEventListener('pointermove', onDrag);
     window.addEventListener('pointerup', endDrag);
   };
@@ -527,7 +571,7 @@ const PhotoTextTool = () => {
     const img = new Image(); img.src = photo.url;
     await new Promise((r, j) => { img.onload = r; img.onerror = j; });
     const W = photo.w;
-    const extra = extraWhite ? Math.round(photo.h * EXTRA_FRAC) : 0;
+    const extra = extraWhite ? Math.round(W * whiteBandFrac()) : 0;
     const H = photo.h + extra;
     const canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
@@ -553,17 +597,34 @@ const PhotoTextTool = () => {
     return <FileDrop accept="image/*" multiple={false} onFiles={onFiles} label="Select photo" hint="Passport-size photo — you'll crop it, then add name & DOB" />;
   }
 
-  // ---- Step 2: crop ----
+  // ---- Step 2: crop (drag the grid box; no zoom) ----
   if (step === 'crop') {
+    const maxW = 460, maxH = 400;
+    let dispW = maxW, dispH = (maxW * natural.h) / natural.w;
+    if (dispH > maxH) { dispH = maxH; dispW = (maxH * natural.w) / natural.h; }
+    const corner = { nw: { left: -9, top: -9, cursor: 'nwse-resize' }, ne: { right: -9, top: -9, cursor: 'nesw-resize' }, sw: { left: -9, bottom: -9, cursor: 'nesw-resize' }, se: { right: -9, bottom: -9, cursor: 'nwse-resize' } };
     return (
       <Panel>
-        <div data-testid="phototext-crop" className="relative w-full h-[380px] rounded-xl overflow-hidden bg-slate-900">
-          <Cropper image={src} crop={crop} zoom={zoom} aspect={35 / 45} onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={onCropComplete} />
+        <div className="flex justify-center">
+          <div ref={cropStageRef} data-testid="phototext-crop" className="relative select-none touch-none rounded-lg overflow-hidden bg-slate-900" style={{ width: dispW, height: dispH }}>
+            <img src={src} alt="to crop" draggable={false} className="absolute inset-0 w-full h-full select-none pointer-events-none" />
+            <div onPointerDown={(e) => startCrop('move', null, e)} data-testid="crop-box"
+              className="absolute border-2 border-white cursor-move"
+              style={{ left: box.x * dispW, top: box.y * dispH, width: box.w * dispW, height: box.h * dispH, boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)' }}>
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute left-0 w-full border-t border-white/50" style={{ top: '33.33%' }} />
+                <div className="absolute left-0 w-full border-t border-white/50" style={{ top: '66.66%' }} />
+                <div className="absolute top-0 h-full border-l border-white/50" style={{ left: '33.33%' }} />
+                <div className="absolute top-0 h-full border-l border-white/50" style={{ left: '66.66%' }} />
+              </div>
+              {['nw', 'ne', 'sw', 'se'].map((hd) => (
+                <span key={hd} data-testid={`crop-handle-${hd}`} onPointerDown={(e) => startCrop('resize', hd, e)}
+                  className="absolute w-4 h-4 bg-white border-2 border-rose-500 rounded-sm touch-none" style={corner[hd]} />
+              ))}
+            </div>
+          </div>
         </div>
-        <Field label={`Zoom: ${zoom.toFixed(1)}x`}>
-          <input data-testid="phototext-zoom" type="range" min="1" max="4" step="0.1" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="w-full accent-rose-500" />
-        </Field>
-        <p className="hint">Frame the face for a passport-style 35×45 crop. Drag the photo and zoom to adjust.</p>
+        <p className="hint text-center">Drag the box to move it and pull the corner grips to resize your crop — no zoom needed.</p>
         <PrimaryBtn testId="phototext-crop-next" busy={false} busyText="" text="Continue to add text" icon={Icons.ArrowRight} onClick={applyCrop} />
         <div className="text-center"><button onClick={() => { setStep('upload'); setFile(null); setSrc(null); }} className="text-sm text-rose-500 font-semibold inline-flex items-center gap-1"><RefreshCw className="w-3.5 h-3.5" /> Choose another photo</button></div>
       </Panel>
@@ -575,11 +636,11 @@ const PhotoTextTool = () => {
   let stageW = 340, imgH = stageW / AR;
   const maxImgH = 430;
   if (imgH > maxImgH) { imgH = maxImgH; stageW = imgH * AR; }
-  const extraPx = extraWhite ? imgH * EXTRA_FRAC : 0;
+  const extraPx = extraWhite ? stageW * whiteBandFrac() : 0;
   const stageH = imgH + extraPx;
 
   const TextOverlay = ({ which, t }) => (
-    <div onPointerDown={(e) => startDrag(which, e)} data-testid={`drag-${which}`}
+    <div onPointerDown={(e) => startDrag(which, 'move', e)} data-testid={`drag-${which}`}
       className="absolute touch-none select-none cursor-move whitespace-nowrap px-1"
       style={{
         left: t.pos.x * stageW, top: t.pos.y * stageH, transform: 'translate(-50%, -50%)',
@@ -587,7 +648,9 @@ const PhotoTextTool = () => {
         color: t.text.trim() ? t.color : '#94a3b8', opacity: t.text.trim() ? 1 : 0.7,
         ...(outline ? { textShadow: '0 0 2px rgba(0,0,0,0.7),0 0 2px rgba(0,0,0,0.7)' } : {}),
       }}>
-      {t.text.trim() || (which === 'name' ? 'Name' : 'Date of birth')}
+      {t.text.trim()}
+      <span data-testid={`resize-${which}`} onPointerDown={(e) => startDrag(which, 'resize', e)}
+        title="Drag to resize" className="absolute -right-2 -bottom-2 w-3.5 h-3.5 bg-white border-2 border-rose-500 rounded-full cursor-nwse-resize" />
     </div>
   );
 
@@ -610,11 +673,11 @@ const PhotoTextTool = () => {
             <div ref={stageRef} data-testid="phototext-stage" className="relative rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 bg-white select-none" style={{ width: stageW, height: stageH }}>
               <img src={photo.url} alt="photo" draggable={false} className="absolute top-0 left-0 pointer-events-none select-none" style={{ width: stageW, height: imgH }} />
               {extraWhite && <div className="absolute left-0 w-full bg-white" style={{ top: imgH, height: extraPx }} />}
-              <TextOverlay which="name" t={name} />
-              <TextOverlay which="dob" t={dob} />
+              {name.text.trim() && <TextOverlay which="name" t={name} />}
+              {dob.text.trim() && <TextOverlay which="dob" t={dob} />}
             </div>
           </div>
-          <p className="hint text-center mt-2 flex items-center justify-center gap-1"><Icons.Move className="w-3.5 h-3.5" /> Drag the name &amp; date to position them exactly.</p>
+          <p className="hint text-center mt-2 flex items-center justify-center gap-1"><Icons.Move className="w-3.5 h-3.5" /> Drag the name &amp; date to move them; drag the corner dot to resize.</p>
         </div>
 
         {/* Controls */}
@@ -654,7 +717,15 @@ const PhotoTextTool = () => {
           </Field>
 
           <label data-testid="extra-white-label" className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-white/10 px-4 py-3 cursor-pointer">
-            <input data-testid="extra-white-checkbox" type="checkbox" checked={extraWhite} onChange={(e) => setExtraWhite(e.target.checked)} className="accent-rose-500 w-4 h-4" />
+            <input data-testid="extra-white-checkbox" type="checkbox" checked={extraWhite} onChange={(e) => {
+              const on = e.target.checked; setExtraWhite(on);
+              if (on) {
+                const K = whiteBandFrac(); const rh = photo.h / photo.w;
+                const imgFrac = rh / (rh + K); const white = 1 - imgFrac;
+                setName((p) => ({ ...p, pos: { x: 0.5, y: imgFrac + white * 0.4 } }));
+                setDob((p) => ({ ...p, pos: { x: 0.5, y: imgFrac + white * 0.8 } }));
+              }
+            }} className="accent-rose-500 w-4 h-4" />
             <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Add Extra White Space On Bottom</span>
           </label>
 
