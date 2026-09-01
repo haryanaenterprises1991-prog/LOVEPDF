@@ -31,6 +31,87 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         <title>LovePDF — Free PDF & Image Tools</title>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
+        <!-- FAQPage structured data (static, present in raw HTML <head> for rich snippets) -->
+        <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Do I need to create an account to use LovePDF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. All tools work without sign-up or login. Upload a file, use the tool, and download your result in one visit — no email, no password, no account required."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is LovePDF really free?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, every tool is free to use with no hidden charges, no watermarks added to your files, and no daily usage cap for normal personal use."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Are my files safe? Where do they go?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Your files are processed directly in your browser using your device's own processing power. They are never uploaded to our servers, which means we never see or store your documents."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What file formats are supported?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "LovePDF supports PDF along with common conversion formats: JPG/PNG images, Word (.docx), Excel (.xlsx), and PowerPoint (.pptx). Exact input/output formats vary by tool."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I use LovePDF on my phone?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. The site works directly in your mobile browser — no app download needed. Every tool is built to work on both desktop and mobile."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does compressing a PDF reduce quality?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Compression mainly optimizes embedded images and removes redundant data. Text stays sharp. Very high compression levels can slightly soften embedded photos, but text-heavy PDFs show little to no visible quality loss."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I merge PDFs in a specific order?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. After uploading multiple files, drag to reorder them before merging — the final PDF follows the order you set."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Will converting PDF to Word keep my formatting?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The tool preserves layout, fonts, tables, and images as closely as possible, but very complex layouts may need minor manual adjustment afterward — a limitation of PDF-to-Word conversion in general."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What happens to my file after I close the tab?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "If processing is local, your file exists only in that browser tab and is gone once you close it or refresh — nothing is stored anywhere."
+      }
+    }
+  ]
+}
+        </script>
     </head>
     <body>
         <!-- Google Tag Manager (noscript) -->
@@ -38,7 +119,18 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
         <noscript>You need to enable JavaScript to run this app.</noscript>
-        <div id="root"></div>
+        <div id="root"><section id="faq-static" aria-label="Frequently asked questions" style="max-width:768px;margin:0 auto;padding:48px 16px;font-family:system-ui,Arial,sans-serif;color:#0f172a">
+<h2 style="text-align:center;font-size:28px;font-weight:800;margin:0 0 24px">Frequently asked questions</h2>
+<div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px 20px;margin-bottom:12px"><h3 style="font-size:16px;font-weight:600;margin:0 0 8px">Do I need to create an account to use LovePDF?</h3><p style="font-size:14px;line-height:1.6;color:#475569;margin:0">No. All tools work without sign-up or login. Upload a file, use the tool, and download your result in one visit — no email, no password, no account required.</p></div>
+<div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px 20px;margin-bottom:12px"><h3 style="font-size:16px;font-weight:600;margin:0 0 8px">Is LovePDF really free?</h3><p style="font-size:14px;line-height:1.6;color:#475569;margin:0">Yes, every tool is free to use with no hidden charges, no watermarks added to your files, and no daily usage cap for normal personal use.</p></div>
+<div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px 20px;margin-bottom:12px"><h3 style="font-size:16px;font-weight:600;margin:0 0 8px">Are my files safe? Where do they go?</h3><p style="font-size:14px;line-height:1.6;color:#475569;margin:0">Your files are processed directly in your browser using your device's own processing power. They are never uploaded to our servers, which means we never see or store your documents.</p></div>
+<div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px 20px;margin-bottom:12px"><h3 style="font-size:16px;font-weight:600;margin:0 0 8px">What file formats are supported?</h3><p style="font-size:14px;line-height:1.6;color:#475569;margin:0">LovePDF supports PDF along with common conversion formats: JPG/PNG images, Word (.docx), Excel (.xlsx), and PowerPoint (.pptx). Exact input/output formats vary by tool.</p></div>
+<div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px 20px;margin-bottom:12px"><h3 style="font-size:16px;font-weight:600;margin:0 0 8px">Can I use LovePDF on my phone?</h3><p style="font-size:14px;line-height:1.6;color:#475569;margin:0">Yes. The site works directly in your mobile browser — no app download needed. Every tool is built to work on both desktop and mobile.</p></div>
+<div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px 20px;margin-bottom:12px"><h3 style="font-size:16px;font-weight:600;margin:0 0 8px">Does compressing a PDF reduce quality?</h3><p style="font-size:14px;line-height:1.6;color:#475569;margin:0">Compression mainly optimizes embedded images and removes redundant data. Text stays sharp. Very high compression levels can slightly soften embedded photos, but text-heavy PDFs show little to no visible quality loss.</p></div>
+<div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px 20px;margin-bottom:12px"><h3 style="font-size:16px;font-weight:600;margin:0 0 8px">Can I merge PDFs in a specific order?</h3><p style="font-size:14px;line-height:1.6;color:#475569;margin:0">Yes. After uploading multiple files, drag to reorder them before merging — the final PDF follows the order you set.</p></div>
+<div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px 20px;margin-bottom:12px"><h3 style="font-size:16px;font-weight:600;margin:0 0 8px">Will converting PDF to Word keep my formatting?</h3><p style="font-size:14px;line-height:1.6;color:#475569;margin:0">The tool preserves layout, fonts, tables, and images as closely as possible, but very complex layouts may need minor manual adjustment afterward — a limitation of PDF-to-Word conversion in general.</p></div>
+<div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px 20px;margin-bottom:12px"><h3 style="font-size:16px;font-weight:600;margin:0 0 8px">What happens to my file after I close the tab?</h3><p style="font-size:14px;line-height:1.6;color:#475569;margin:0">If processing is local, your file exists only in that browser tab and is gone once you close it or refresh — nothing is stored anywhere.</p></div>
+</section></div>
         <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.

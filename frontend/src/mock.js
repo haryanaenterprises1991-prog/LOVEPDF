@@ -68,15 +68,15 @@ export const FEATURES = [
 ];
 
 export const FAQS = [
-  { q: 'What is LovePDF?', a: '<p>LovePDF is a free online toolkit that lets you <strong>merge, split, compress, convert, edit and sign PDF files</strong> — plus handy image tools like background removal and cropping. Everything runs in your browser for speed and privacy.</p>' },
-  { q: 'Are the PDF tools really free to use?', a: '<p>Yes. All of our core tools are <strong>100% free</strong> with no hidden charges, watermarks or forced sign-ups. Just open a tool, upload your file and download the result.</p>' },
-  { q: 'Are my files safe and private?', a: '<p>Absolutely. Our instant tools such as <em>Merge, Split, Rotate and Edit PDF</em> process your files <strong>directly in your browser</strong>, so they never leave your device. For advanced conversions that need a server, files are processed securely and deleted automatically after a short time.</p>' },
-  { q: 'Do I need to install software or create an account?', a: '<p>No. LovePDF works entirely online — <strong>no installation and no account required</strong>. It runs on any modern browser on Windows, macOS, Linux, Android and iOS.</p>' },
-  { q: 'How do I edit the text in a PDF?', a: '<p>Open the <strong>Edit PDF</strong> tool, upload your document and simply click any text to change its words, font, size and colour. Edited text keeps its original size and automatically wraps to a new line if a word is longer, so your layout stays neat. Then click <em>Save changes</em> to download the updated PDF.</p>' },
-  { q: 'Can I merge, split and compress PDF files?', a: '<p>Yes. Use <strong>Merge PDF</strong> to combine several files (and images) into one, <strong>Split PDF</strong> to pull out page ranges, and <strong>Compress PDF</strong> to shrink the file size while keeping great quality.</p>' },
-  { q: 'Can I convert between PDF and Word, Excel or JPG?', a: '<p>Definitely. LovePDF converts <strong>PDF to Word, Excel, PowerPoint and JPG</strong>, and back again. You can also turn JPG and PNG images into a single PDF in seconds.</p>' },
-  { q: 'How does the Remove Background tool work?', a: '<p>Upload any photo and our AI automatically erases the background. You can keep it <strong>transparent</strong>, fill it with a <strong>solid colour of your choice</strong>, or drop in your own <strong>custom background image</strong> before downloading.</p>' },
-  { q: 'Does LovePDF work on mobile devices?', a: '<p>Yes. LovePDF is fully responsive and works smoothly on <strong>mobile, tablet and desktop</strong> browsers, so you can manage your documents anywhere.</p>' },
+  { q: 'Do I need to create an account to use LovePDF?', a: 'No. All tools work without sign-up or login. Upload a file, use the tool, and download your result in one visit — no email, no password, no account required.' },
+  { q: 'Is LovePDF really free?', a: 'Yes, every tool is free to use with no hidden charges, no watermarks added to your files, and no daily usage cap for normal personal use.' },
+  { q: 'Are my files safe? Where do they go?', a: "Your files are processed directly in your browser using your device's own processing power. They are never uploaded to our servers, which means we never see or store your documents." },
+  { q: 'What file formats are supported?', a: 'LovePDF supports PDF along with common conversion formats: JPG/PNG images, Word (.docx), Excel (.xlsx), and PowerPoint (.pptx). Exact input/output formats vary by tool.' },
+  { q: 'Can I use LovePDF on my phone?', a: 'Yes. The site works directly in your mobile browser — no app download needed. Every tool is built to work on both desktop and mobile.' },
+  { q: 'Does compressing a PDF reduce quality?', a: 'Compression mainly optimizes embedded images and removes redundant data. Text stays sharp. Very high compression levels can slightly soften embedded photos, but text-heavy PDFs show little to no visible quality loss.' },
+  { q: 'Can I merge PDFs in a specific order?', a: 'Yes. After uploading multiple files, drag to reorder them before merging — the final PDF follows the order you set.' },
+  { q: 'Will converting PDF to Word keep my formatting?', a: 'The tool preserves layout, fonts, tables, and images as closely as possible, but very complex layouts may need minor manual adjustment afterward — a limitation of PDF-to-Word conversion in general.' },
+  { q: 'What happens to my file after I close the tab?', a: 'If processing is local, your file exists only in that browser tab and is gone once you close it or refresh — nothing is stored anywhere.' },
 ];
 
 export const ICON_TILE = {

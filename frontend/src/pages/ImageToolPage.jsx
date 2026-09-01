@@ -143,12 +143,15 @@ const RemoveBgTool = () => {
   const [bgImage, setBgImage] = useState(null);     // custom background dataURL
   const [subjectScale, setSubjectScale] = useState(100); // subject (foreground) size %
   const [bgFit, setBgFit] = useState('cover');      // cover | contain | stretch
+  const [subjectPos, setSubjectPos] = useState({ x: 0.5, y: 0.5 }); // subject centre (normalized)
   const bgInputRef = useRef(null);
+  const stageRef = useRef(null);
+  const dragRef = useRef(null);
 
   const onFiles = (list) => {
     const f = list[0];
     setFile(f); setError(''); setCutout(null); setComposed(null);
-    setBgMode('transparent'); setBgImage(null); setSubjectScale(100); setBgFit('cover');
+    setBgMode('transparent'); setBgImage(null); setSubjectScale(100); setBgFit('cover'); setSubjectPos({ x: 0.5, y: 0.5 });
     setPreview(URL.createObjectURL(f));
   };
 
@@ -160,7 +163,10 @@ const RemoveBgTool = () => {
       if (!res.ok) { const j = await res.json().catch(() => null); throw new Error(j?.detail || 'Background removal failed.'); }
       const blob = await res.blob();
       const name = file.name.replace(/\.[^.]+$/, '') + '_no_bg.png';
-      setCutout({ blob, url: URL.createObjectURL(blob), name });
+      const url = URL.createObjectURL(blob);
+      const dims = await new Promise((resolve) => { const im = new Image(); im.onload = () => resolve({ w: im.naturalWidth, h: im.naturalHeight }); im.onerror = () => resolve({ w: 1, h: 1 }); im.src = url; });
+      setSubjectPos({ x: 0.5, y: 0.5 });
+      setCutout({ blob, url, name, w: dims.w, h: dims.h });
     } catch (e) { setError(e.message); }
     setBusy(false);
   };
@@ -171,6 +177,27 @@ const RemoveBgTool = () => {
     const r = new FileReader();
     r.onload = () => { setBgImage(r.result); setBgMode('image'); };
     r.readAsDataURL(f);
+  };
+
+  // Drag the subject around the preview stage (pointer events = mouse + touch).
+  const onSubjectMove = (e) => {
+    const d = dragRef.current; if (!d) return;
+    const dx = (e.clientX - d.startX) / d.rw;
+    const dy = (e.clientY - d.startY) / d.rh;
+    setSubjectPos({ x: Math.max(0, Math.min(1, d.ox + dx)), y: Math.max(0, Math.min(1, d.oy + dy)) });
+  };
+  const onSubjectUp = () => {
+    dragRef.current = null;
+    window.removeEventListener('pointermove', onSubjectMove);
+    window.removeEventListener('pointerup', onSubjectUp);
+  };
+  const onSubjectDown = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!stageRef.current) return;
+    const rect = stageRef.current.getBoundingClientRect();
+    dragRef.current = { startX: e.clientX, startY: e.clientY, ox: subjectPos.x, oy: subjectPos.y, rw: rect.width, rh: rect.height };
+    window.addEventListener('pointermove', onSubjectMove);
+    window.addEventListener('pointerup', onSubjectUp);
   };
 
   // Composite the transparent cutout over the chosen background (color / image
@@ -209,13 +236,13 @@ const RemoveBgTool = () => {
           ctx.drawImage(bg, dx, dy, dw, dh);
         }
       }
-      // Draw the subject (foreground) scaled by subjectScale, centred
-      // horizontally and anchored to the bottom so it "sits" in the background.
-      const s = Math.max(0.2, Math.min(1, subjectScale / 100));
-      const fw = fg.naturalWidth * s;
-      const fh = fg.naturalHeight * s;
-      const fx = (canvas.width - fw) / 2;
-      const fy = canvas.height - fh;
+      // Draw the subject (foreground) scaled by subjectScale and positioned by
+      // the user's drag (subjectPos = centre, normalized 0..1).
+      const s = Math.max(0.3, Math.min(1, subjectScale / 100));
+      const fw = canvas.width * s;
+      const fh = canvas.height * s;
+      const fx = (subjectPos.x - s / 2) * canvas.width;
+      const fy = (subjectPos.y - s / 2) * canvas.height;
       ctx.drawImage(fg, fx, fy, fw, fh);
       const transparent = bgMode === 'transparent';
       const type = transparent ? 'image/png' : 'image/jpeg';
@@ -227,24 +254,37 @@ const RemoveBgTool = () => {
       setComposed({ blob, url: URL.createObjectURL(blob), name: `${base}_${tag}.${ext}` });
     })();
     return () => { cancelled = true; };
-  }, [cutout, bgMode, bgColor, bgImage, subjectScale, bgFit]);
+  }, [cutout, bgMode, bgColor, bgImage, subjectScale, bgFit, subjectPos]);
 
-  const reset = () => { setFile(null); setCutout(null); setComposed(null); setPreview(null); setBgImage(null); setBgMode('transparent'); setSubjectScale(100); setBgFit('cover'); };
+  const reset = () => { setFile(null); setCutout(null); setComposed(null); setPreview(null); setBgImage(null); setBgMode('transparent'); setSubjectScale(100); setBgFit('cover'); setSubjectPos({ x: 0.5, y: 0.5 }); };
 
   if (cutout) {
+    const AR = (cutout.w || 1) / (cutout.h || 1);
+    let stageW = 420, stageH = stageW / AR;
+    const maxH = 460;
+    if (stageH > maxH) { stageH = maxH; stageW = stageH * AR; }
+    const s = Math.max(0.3, Math.min(1, subjectScale / 100));
+    const subLeft = (subjectPos.x - s / 2) * stageW;
+    const subTop = (subjectPos.y - s / 2) * stageH;
+    const bgFitClass = bgFit === 'cover' ? 'object-cover' : bgFit === 'contain' ? 'object-contain' : 'object-fill';
     return (
       <Panel>
         <div className="grid lg:grid-cols-2 gap-6 items-start" data-testid="removebg-result">
-          {/* Preview — sticky so it stays visible while you adjust the options */}
+          {/* Preview stage — sticky so it stays visible; drag the subject to move it */}
           <div className="sticky top-20 self-start z-10">
             <div className="flex justify-center rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02] p-3">
-              <div className="inline-block rounded-xl p-3 border border-slate-200 dark:border-white/10" style={bgMode === 'transparent' ? CHECKER : undefined}>
-                {composed
-                  ? <img src={composed.url} alt="Result" className="max-h-[60vh] w-auto object-contain" />
-                  : <div className="h-52 w-52 grid place-items-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>}
+              <div ref={stageRef} data-testid="removebg-stage"
+                className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 select-none"
+                style={{ width: stageW, height: stageH, ...(bgMode === 'transparent' ? CHECKER : bgMode === 'color' ? { backgroundColor: bgColor } : { backgroundColor: '#ffffff' }) }}>
+                {bgMode === 'image' && bgImage && (
+                  <img src={bgImage} alt="background" draggable={false} className={`absolute inset-0 w-full h-full ${bgFitClass} pointer-events-none select-none`} />
+                )}
+                <img src={cutout.url} alt="subject" draggable={false} onPointerDown={onSubjectDown} data-testid="removebg-subject"
+                  className="absolute cursor-move touch-none"
+                  style={{ left: subLeft, top: subTop, width: stageW * s, height: stageH * s }} />
               </div>
             </div>
-            <p className="hint text-center mt-2">Live preview — updates as you change the options.</p>
+            <p className="hint text-center mt-2 flex items-center justify-center gap-1"><Icons.Move className="w-3.5 h-3.5" /> Drag the subject to reposition it on the background.</p>
           </div>
 
           {/* Controls */}

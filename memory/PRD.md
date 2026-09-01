@@ -26,3 +26,8 @@ User asked for BOTH tasks together.
 - FAQ content is a professional default set (9 PDF-related Q&As). User offered to provide own content — can be swapped into `FAQS` in `frontend/src/mock.js` anytime.
 - Optional cleanup: unused `measureTextWidthPx` (EditPdfPage), unused `httpx`/`REMOVE_BG_URL` (image_tools.py).
 - Backend requirements installed excluding emergentintegrations/litellm URL (unused, caused pip conflict).
+
+## Session addendum (2026-09-01) — Exact FAQ + SSR-in-raw-HTML + drag subject
+- **Homepage FAQ replaced** with user's exact 9 Q&As (`frontend/src/mock.js`). Answers now render ALWAYS in the DOM (CSS grid-rows collapse, not conditional JS mount) so crawlers read them — `frontend/src/pages/Home.jsx`.
+- **Raw HTML SEO**: FAQPage JSON-LD added to `<head>` of `frontend/public/index.html`; static FAQ HTML (9 Q&As) placed inside `#root` so it is present in view-source of the served/built page. React JSON-LD (Seo jsonLd prop) removed to avoid duplication. Verified via curl: 1 ld+json FAQPage + all FAQ text present in raw HTML. NOTE: dev server caches index.html — a frontend restart is needed after editing public/index.html.
+- **Remove Background drag-to-position**: subject is now a draggable element on an interactive preview stage (pointer events, normalized centre position); works with subject-size, bg-fit, colour/image modes. Composite mirrors the drag position. `frontend/src/pages/ImageToolPage.jsx`.

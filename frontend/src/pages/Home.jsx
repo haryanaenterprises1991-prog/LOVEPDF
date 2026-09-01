@@ -33,22 +33,10 @@ const Home = () => {
     .map((s) => TOOLS.find((t) => t.slug === s && t.ready))
     .filter(Boolean);
 
-  // FAQPage structured data (JSON-LD) built from the on-page FAQ, injected into
-  // <head> via the Seo component for rich results in search engines.
-  const faqJsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: FAQS.map((f) => ({
-      '@type': 'Question',
-      name: f.q,
-      acceptedAnswer: { '@type': 'Answer', text: f.a.replace(/<[^>]+>/g, '').trim() },
-    })),
-  };
-
   return (
     <div className="min-h-screen bg-white dark:bg-[#0a0d16] text-slate-900 dark:text-slate-100 transition-colors">
       <Header />
-      <Seo path="/" title="LovePDF — Free PDF & Image Tools" description="lovepdf.co.in." jsonLd={faqJsonLd} />
+      <Seo path="/" title="LovePDF — Free PDF & Image Tools" description="lovepdf.co.in." />
 
       {/* HERO */}
       <section className="relative overflow-hidden grid-hero grain">
@@ -173,13 +161,17 @@ const Home = () => {
         <div className="space-y-3">
           {FAQS.map((f, i) => (
             <div key={i} data-testid={`faq-item-${i}`} className="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.03] overflow-hidden">
-              <button onClick={() => setOpenFaq(openFaq === i ? -1 : i)} data-testid={`faq-question-${i}`} className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left">
+              <button onClick={() => setOpenFaq(openFaq === i ? -1 : i)} data-testid={`faq-question-${i}`} aria-expanded={openFaq === i} className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left">
                 <span className="font-semibold">{f.q}</span>
                 <Icons.ChevronDown className={`w-5 h-5 text-slate-400 shrink-0 transition-transform ${openFaq === i ? 'rotate-180' : ''}`} />
               </button>
-              {openFaq === i && (
-                <div className="px-5 pb-5 text-sm text-slate-600 dark:text-slate-300 leading-relaxed reveal faq-answer" data-testid={`faq-answer-${i}`} dangerouslySetInnerHTML={{ __html: f.a }} />
-              )}
+              {/* Answer is ALWAYS in the DOM on load (real HTML text for SEO/crawlers);
+                  it is only collapsed/expanded visually via CSS, never JS-mounted on click. */}
+              <div className={`grid transition-all duration-300 ease-out ${openFaq === i ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                <div className="overflow-hidden">
+                  <p className="px-5 pb-5 text-sm text-slate-600 dark:text-slate-300 leading-relaxed faq-answer" data-testid={`faq-answer-${i}`}>{f.a}</p>
+                </div>
+              </div>
             </div>
           ))}
         </div>
