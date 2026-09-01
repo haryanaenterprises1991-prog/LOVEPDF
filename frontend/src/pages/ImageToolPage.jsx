@@ -470,122 +470,203 @@ const FONTS = [
   { id: "'Courier New', monospace", label: 'Typewriter' },
 ];
 
-const POSITIONS = [
-  ['top-left', 'top-center', 'top-right'],
-  ['middle-left', 'middle-center', 'middle-right'],
-  ['bottom-left', 'bottom-center', 'bottom-right'],
-];
-
 const PhotoTextTool = () => {
+  const [step, setStep] = useState('upload');        // upload | crop | edit
   const [file, setFile] = useState(null);
-  const [img, setImg] = useState(null);
-  const [name, setName] = useState('');
-  const [dob, setDob] = useState('');
-  const [pos, setPos] = useState('bottom-center');
-  const [font, setFont] = useState(FONTS[2].id);
-  const [color, setColor] = useState('#ffffff');
-  const [size, setSize] = useState(8);
+  const [src, setSrc] = useState(null);              // original object URL (for cropper)
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [areaPx, setAreaPx] = useState(null);
+  const [photo, setPhoto] = useState(null);          // cropped image { url, w, h }
+  const [extraWhite, setExtraWhite] = useState(false);
+  const [font, setFont] = useState(FONTS[1].id);     // shared font family
+  const [name, setName] = useState({ text: '', size: 7, color: '#0f172a', pos: { x: 0.5, y: 0.88 } });
+  const [dob, setDob] = useState({ text: '', size: 4.5, color: '#0f172a', pos: { x: 0.5, y: 0.95 } });
   const [outline, setOutline] = useState(false);
-  const canvasRef = useRef(null);
+  const stageRef = useRef(null);
+  const dragRef = useRef(null);
+  const EXTRA_FRAC = 0.30;
 
   const onFiles = (list) => {
-    const f = list[0]; setFile(f);
-    const i = new Image();
-    i.onload = () => setImg(i);
-    i.src = URL.createObjectURL(f);
+    const f = list[0]; setFile(f); setSrc(URL.createObjectURL(f));
+    setStep('crop'); setZoom(1); setCrop({ x: 0, y: 0 });
+  };
+  const onCropComplete = useCallback((_, px) => setAreaPx(px), []);
+
+  const applyCrop = async () => {
+    if (!areaPx) return;
+    const img = new Image(); img.src = src;
+    await new Promise((r, j) => { img.onload = r; img.onerror = j; });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(areaPx.width); canvas.height = Math.round(areaPx.height);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, areaPx.x, areaPx.y, areaPx.width, areaPx.height, 0, 0, canvas.width, canvas.height);
+    setPhoto({ url: canvas.toDataURL('image/jpeg', 0.95), w: canvas.width, h: canvas.height });
+    setStep('edit');
   };
 
-  useEffect(() => {
-    if (!img || !canvasRef.current) return;
-    const canvas = canvasRef.current;
-    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    const lines = [];
-    if (name.trim()) lines.push({ text: name.trim(), scale: 1 });
-    if (dob.trim()) lines.push({ text: dob.trim(), scale: 0.62 });
-    if (!lines.length) return;
-    const base = (canvas.width * size) / 100;
-    const pad = canvas.width * 0.045;
-    const gap = base * 0.25;
-    const heights = lines.map((l) => base * l.scale);
-    const blockH = heights.reduce((a, b) => a + b, 0) + gap * (lines.length - 1);
-    const [v, h] = pos.split('-');
-    let y = v === 'top' ? pad : v === 'middle' ? (canvas.height - blockH) / 2 : canvas.height - pad - blockH;
-    const x = h === 'left' ? pad : h === 'right' ? canvas.width - pad : canvas.width / 2;
-    ctx.textAlign = h === 'left' ? 'left' : h === 'right' ? 'right' : 'center';
-    ctx.textBaseline = 'top';
-    lines.forEach((l, i) => {
-      ctx.font = `${l.scale === 1 ? 'bold ' : ''}${heights[i]}px ${font}`;
-      if (outline) {
-        ctx.lineWidth = Math.max(2, heights[i] / 11);
-        ctx.strokeStyle = 'rgba(0,0,0,0.65)';
-        ctx.strokeText(l.text, x, y);
-      }
-      ctx.fillStyle = color;
-      ctx.fillText(l.text, x, y);
-      y += heights[i] + gap;
-    });
-  }, [img, name, dob, pos, font, color, size, outline]);
+  // Drag the name / dob text around the preview stage (mouse + touch).
+  const onDrag = (e) => {
+    const d = dragRef.current; if (!d) return;
+    const nx = Math.max(0, Math.min(1, d.ox + (e.clientX - d.startX) / d.rw));
+    const ny = Math.max(0, Math.min(1, d.oy + (e.clientY - d.startY) / d.rh));
+    (d.which === 'name' ? setName : setDob)((prev) => ({ ...prev, pos: { x: nx, y: ny } }));
+  };
+  const endDrag = () => { dragRef.current = null; window.removeEventListener('pointermove', onDrag); window.removeEventListener('pointerup', endDrag); };
+  const startDrag = (which, e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!stageRef.current) return;
+    const rect = stageRef.current.getBoundingClientRect();
+    const cur = which === 'name' ? name.pos : dob.pos;
+    dragRef.current = { which, startX: e.clientX, startY: e.clientY, ox: cur.x, oy: cur.y, rw: rect.width, rh: rect.height };
+    window.addEventListener('pointermove', onDrag);
+    window.addEventListener('pointerup', endDrag);
+  };
 
   const save = async () => {
-    const blob = await new Promise((r) => canvasRef.current.toBlob(r, 'image/jpeg', 0.95));
+    const img = new Image(); img.src = photo.url;
+    await new Promise((r, j) => { img.onload = r; img.onerror = j; });
+    const W = photo.w;
+    const extra = extraWhite ? Math.round(photo.h * EXTRA_FRAC) : 0;
+    const H = photo.h + extra;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(img, 0, 0, W, photo.h);
+    const drawText = (t) => {
+      if (!t.text.trim()) return;
+      const fontPx = (W * t.size) / 100;
+      ctx.font = `${fontPx}px ${font}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const x = t.pos.x * W; const y = t.pos.y * H;
+      if (outline) { ctx.lineWidth = Math.max(2, fontPx / 10); ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.strokeText(t.text.trim(), x, y); }
+      ctx.fillStyle = t.color; ctx.fillText(t.text.trim(), x, y);
+    };
+    drawText(name); drawText(dob);
+    const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.95));
     downloadBlob(blob, (file.name.replace(/\.[^.]+$/, '') || 'photo') + '_named.jpg');
   };
 
-  return !file ? (
-    <FileDrop accept="image/*" multiple={false} onFiles={onFiles} label="Select photo" hint="Upload a photo, then add name & date of birth" />
-  ) : (
+  // ---- Step 1: upload ----
+  if (step === 'upload') {
+    return <FileDrop accept="image/*" multiple={false} onFiles={onFiles} label="Select photo" hint="Passport-size photo — you'll crop it, then add name & DOB" />;
+  }
+
+  // ---- Step 2: crop ----
+  if (step === 'crop') {
+    return (
+      <Panel>
+        <div data-testid="phototext-crop" className="relative w-full h-[380px] rounded-xl overflow-hidden bg-slate-900">
+          <Cropper image={src} crop={crop} zoom={zoom} aspect={35 / 45} onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={onCropComplete} />
+        </div>
+        <Field label={`Zoom: ${zoom.toFixed(1)}x`}>
+          <input data-testid="phototext-zoom" type="range" min="1" max="4" step="0.1" value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="w-full accent-rose-500" />
+        </Field>
+        <p className="hint">Frame the face for a passport-style 35×45 crop. Drag the photo and zoom to adjust.</p>
+        <PrimaryBtn testId="phototext-crop-next" busy={false} busyText="" text="Continue to add text" icon={Icons.ArrowRight} onClick={applyCrop} />
+        <div className="text-center"><button onClick={() => { setStep('upload'); setFile(null); setSrc(null); }} className="text-sm text-rose-500 font-semibold inline-flex items-center gap-1"><RefreshCw className="w-3.5 h-3.5" /> Choose another photo</button></div>
+      </Panel>
+    );
+  }
+
+  // ---- Step 3: edit (draggable text) ----
+  const AR = photo.w / photo.h;
+  let stageW = 340, imgH = stageW / AR;
+  const maxImgH = 430;
+  if (imgH > maxImgH) { imgH = maxImgH; stageW = imgH * AR; }
+  const extraPx = extraWhite ? imgH * EXTRA_FRAC : 0;
+  const stageH = imgH + extraPx;
+
+  const TextOverlay = ({ which, t }) => (
+    <div onPointerDown={(e) => startDrag(which, e)} data-testid={`drag-${which}`}
+      className="absolute touch-none select-none cursor-move whitespace-nowrap px-1"
+      style={{
+        left: t.pos.x * stageW, top: t.pos.y * stageH, transform: 'translate(-50%, -50%)',
+        fontFamily: font, fontSize: (stageW * t.size) / 100, lineHeight: 1,
+        color: t.text.trim() ? t.color : '#94a3b8', opacity: t.text.trim() ? 1 : 0.7,
+        ...(outline ? { textShadow: '0 0 2px rgba(0,0,0,0.7),0 0 2px rgba(0,0,0,0.7)' } : {}),
+      }}>
+      {t.text.trim() || (which === 'name' ? 'Name' : 'Date of birth')}
+    </div>
+  );
+
+  const swatches = ['#0f172a', '#ffffff', '#f43f5e', '#2563eb', '#059669', '#c026d3'];
+  const ColorRow = ({ t, setT }) => (
+    <div className="flex items-center gap-2 flex-wrap">
+      <input data-testid={`${t === name ? 'name' : 'dob'}-color`} type="color" value={t.color} onChange={(e) => setT((p) => ({ ...p, color: e.target.value }))} className="w-11 h-9 rounded-lg border border-slate-200 dark:border-white/10 cursor-pointer bg-transparent" />
+      {swatches.map((c) => (
+        <button key={c} onClick={() => setT((p) => ({ ...p, color: c }))} className={`w-6 h-6 rounded-full border-2 ${t.color.toLowerCase() === c ? 'border-rose-500' : 'border-slate-200 dark:border-white/20'}`} style={{ backgroundColor: c }} />
+      ))}
+    </div>
+  );
+
+  return (
     <Panel>
-      <div data-testid="phototext-preview" className="flex justify-center rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02] p-3">
-        <canvas ref={canvasRef} className="max-h-[380px] max-w-full rounded-lg object-contain" style={{ width: 'auto', height: 'auto' }} />
-      </div>
-      <div className="grid sm:grid-cols-2 gap-4">
-        <Field label="Name">
-          <input data-testid="name-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Aarav Sharma" className="input" />
-        </Field>
-        <Field label="Date of birth / extra text">
-          <input data-testid="dob-input" value={dob} onChange={(e) => setDob(e.target.value)} placeholder="e.g. 14 June 2025" className="input" />
-        </Field>
-      </div>
-      <div className="grid sm:grid-cols-3 gap-4">
-        <Field label="Position">
-          <div className="grid grid-cols-3 gap-1 w-max">
-            {POSITIONS.flat().map((p) => (
-              <button key={p} data-testid={`pos-${p}`} onClick={() => setPos(p)} title={p}
-                className={`w-9 h-9 rounded-lg border grid place-items-center transition-colors ${pos === p ? 'btn-primary text-white border-transparent' : 'border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5'}`}>
-                <span className={`w-2 h-2 rounded-full ${pos === p ? 'bg-white' : 'bg-slate-400'}`} />
-              </button>
-            ))}
+      <div className="grid lg:grid-cols-2 gap-6 items-start" data-testid="phototext-edit">
+        {/* Sticky preview stage */}
+        <div className="sticky top-20 self-start z-10">
+          <div className="flex justify-center rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02] p-3">
+            <div ref={stageRef} data-testid="phototext-stage" className="relative rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 bg-white select-none" style={{ width: stageW, height: stageH }}>
+              <img src={photo.url} alt="photo" draggable={false} className="absolute top-0 left-0 pointer-events-none select-none" style={{ width: stageW, height: imgH }} />
+              {extraWhite && <div className="absolute left-0 w-full bg-white" style={{ top: imgH, height: extraPx }} />}
+              <TextOverlay which="name" t={name} />
+              <TextOverlay which="dob" t={dob} />
+            </div>
           </div>
-        </Field>
-        <Field label="Font style">
-          <select data-testid="font-select" value={font} onChange={(e) => setFont(e.target.value)} className="input">
-            {FONTS.map((f) => <option key={f.id} value={f.id} style={{ fontFamily: f.id }}>{f.label}</option>)}
-          </select>
-        </Field>
-        <Field label="Text color">
-          <div className="flex items-center gap-2">
-            <input data-testid="color-picker" type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-12 h-10 rounded-lg border border-slate-200 dark:border-white/10 cursor-pointer bg-transparent" />
-            {['#ffffff', '#ffd6e0', '#ffe066', '#f43f5e', '#1e293b'].map((c) => (
-              <button key={c} onClick={() => setColor(c)} className={`w-7 h-7 rounded-full border-2 ${color === c ? 'border-rose-500' : 'border-slate-200 dark:border-white/20'}`} style={{ backgroundColor: c }} />
-            ))}
-          </div>
-        </Field>
+          <p className="hint text-center mt-2 flex items-center justify-center gap-1"><Icons.Move className="w-3.5 h-3.5" /> Drag the name &amp; date to position them exactly.</p>
+        </div>
+
+        {/* Controls */}
+        <div className="space-y-5">
+          <Field label="Name">
+            <input data-testid="name-input" value={name.text} onChange={(e) => setName((p) => ({ ...p, text: e.target.value }))} placeholder="e.g. Aarav Sharma" className="input" />
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Size: {name.size}%</label>
+                <input data-testid="name-size" type="range" min="3" max="16" step="0.5" value={name.size} onChange={(e) => setName((p) => ({ ...p, size: Number(e.target.value) }))} className="w-full accent-rose-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Colour</label>
+                <ColorRow t={name} setT={setName} />
+              </div>
+            </div>
+          </Field>
+
+          <Field label="Date of birth / extra text">
+            <input data-testid="dob-input" value={dob.text} onChange={(e) => setDob((p) => ({ ...p, text: e.target.value }))} placeholder="e.g. 14 June 2025" className="input" />
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Size: {dob.size}%</label>
+                <input data-testid="dob-size" type="range" min="2" max="14" step="0.5" value={dob.size} onChange={(e) => setDob((p) => ({ ...p, size: Number(e.target.value) }))} className="w-full accent-rose-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Colour</label>
+                <ColorRow t={dob} setT={setDob} />
+              </div>
+            </div>
+          </Field>
+
+          <Field label="Font style">
+            <select data-testid="font-select" value={font} onChange={(e) => setFont(e.target.value)} className="input">
+              {FONTS.map((f) => <option key={f.id} value={f.id} style={{ fontFamily: f.id }}>{f.label}</option>)}
+            </select>
+          </Field>
+
+          <label data-testid="extra-white-label" className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-white/10 px-4 py-3 cursor-pointer">
+            <input data-testid="extra-white-checkbox" type="checkbox" checked={extraWhite} onChange={(e) => setExtraWhite(e.target.checked)} className="accent-rose-500 w-4 h-4" />
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Add Extra White Space On Bottom</span>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input data-testid="outline-toggle" type="checkbox" checked={outline} onChange={(e) => setOutline(e.target.checked)} className="accent-rose-500 w-4 h-4" />
+            <span className="text-sm text-slate-600 dark:text-slate-300">Readability outline (dark stroke behind text)</span>
+          </label>
+
+          <PrimaryBtn testId="phototext-download-btn" busy={false} busyText="" text="Download photo" icon={Download} onClick={save} />
+          <div className="text-center"><button onClick={() => setStep('crop')} className="text-sm text-rose-500 font-semibold inline-flex items-center gap-1"><Icons.Crop className="w-3.5 h-3.5" /> Re-crop photo</button></div>
+        </div>
       </div>
-      <div className="grid sm:grid-cols-2 gap-4">
-        <Field label={`Text size: ${size}%`}>
-          <input data-testid="size-slider" type="range" min="3" max="16" step="0.5" value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full accent-rose-500" />
-        </Field>
-        <Field label="Readability outline">
-          <button data-testid="outline-toggle" onClick={() => setOutline(!outline)}
-            className={`px-4 py-2.5 rounded-xl text-sm font-semibold border transition-colors ${outline ? 'btn-primary text-white border-transparent' : 'border-slate-200 dark:border-white/10'}`}>
-            {outline ? 'Outline on' : 'Outline off'}
-          </button>
-        </Field>
-      </div>
-      <FileChip file={file} onRemove={() => { setFile(null); setImg(null); }} />
-      <PrimaryBtn testId="phototext-download-btn" busy={false} busyText="" text="Download photo" icon={Download} onClick={save} />
     </Panel>
   );
 };
