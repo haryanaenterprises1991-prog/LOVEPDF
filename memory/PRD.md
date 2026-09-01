@@ -1,0 +1,28 @@
+# LovePDF — PRD & Progress
+
+## Origin
+Cloned from GitHub: sanjivkumar71771-commits/lovepdf into /app (React + FastAPI + MongoDB).
+Free online PDF & image toolkit (merge/split/compress/convert/edit/sign + image tools).
+
+## Session (2026-09-01) — Edit PDF fixes, Remove BG options, Homepage professional
+User asked for BOTH tasks together.
+
+### Implemented
+- **Edit PDF — keep original font size + word wrap** (`frontend/src/lib/pdfUtils.js`, `EditPdfPage.jsx`):
+  - Removed shrink-to-fit on screen; edited text now keeps its ORIGINAL font size.
+  - Added `wrapTextToWidth()`; `applyPdfEdits` & `applyPdfTextEdits` now wrap long text onto new lines (cover box + alignment span all lines) instead of shrinking. Verified font size stable (43.056px) before/after.
+- **Remove Background — background color picker + custom image** (`frontend/src/pages/ImageToolPage.jsx`):
+  - After AI cutout (transparent PNG), user picks Transparent / Solid colour (picker+swatches) / Custom image (upload). Client-side canvas compositing; download PNG (transparent) or JPG (with bg).
+- **Homepage professional** (`frontend/src/pages/Home.jsx`, `mock.js`):
+  - Removed fake testimonials ("What people are saying") and fake stats (5.2B+, 4.9/5). STATS now honest.
+  - 9-question FAQ section (HTML-formatted answers via dangerouslySetInnerHTML) placed directly below the tools grid.
+  - Added `<Seo>` with FAQPage JSON-LD schema in head; meta description = "lovepdf.co.in." (also in public/index.html).
+
+### Testing
+- Testing agent iteration_1: all 6 behaviours PASS. Frontend 100%. Backend remove-bg returns image/png.
+- Out-of-scope: /api/pdf/health reports some system binaries (soffice/gs/qpdf/tesseract/pdftoppm) not installed in preview env — unrelated to this task.
+
+### Notes / Backlog
+- FAQ content is a professional default set (9 PDF-related Q&As). User offered to provide own content — can be swapped into `FAQS` in `frontend/src/mock.js` anytime.
+- Optional cleanup: unused `measureTextWidthPx` (EditPdfPage), unused `httpx`/`REMOVE_BG_URL` (image_tools.py).
+- Backend requirements installed excluding emergentintegrations/litellm URL (unused, caused pip conflict).
