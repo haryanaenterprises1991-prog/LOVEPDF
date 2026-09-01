@@ -479,8 +479,8 @@ const PhotoTextTool = () => {
   const [photo, setPhoto] = useState(null);          // cropped image { url, w, h }
   const [extraWhite, setExtraWhite] = useState(false);
   const [font, setFont] = useState(FONTS[1].id);     // shared font family
-  const [name, setName] = useState({ text: '', size: 6, color: '#0f172a', pos: { x: 0.5, y: 0.88 } });
-  const [dob, setDob] = useState({ text: '', size: 4, color: '#0f172a', pos: { x: 0.5, y: 0.95 } });
+  const [name, setName] = useState({ text: '', size: 6, color: '#0f172a', pos: { x: 0.5, y: 0.5 } });
+  const [dob, setDob] = useState({ text: '', size: 4, color: '#0f172a', pos: { x: 0.5, y: 0.6 } });
   const [outline, setOutline] = useState(false);
   const stageRef = useRef(null);
   const dragRef = useRef(null);
@@ -641,7 +641,7 @@ const PhotoTextTool = () => {
 
   const TextOverlay = ({ which, t }) => (
     <div onPointerDown={(e) => startDrag(which, 'move', e)} data-testid={`drag-${which}`}
-      className="absolute touch-none select-none cursor-move whitespace-nowrap px-1"
+      className="absolute touch-none select-none cursor-move whitespace-nowrap px-1.5 py-0.5 rounded-md border border-dashed border-rose-400/80"
       style={{
         left: t.pos.x * stageW, top: t.pos.y * stageH, transform: 'translate(-50%, -50%)',
         fontFamily: font, fontSize: (stageW * t.size) / 100, lineHeight: 1,
