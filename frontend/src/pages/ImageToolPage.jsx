@@ -141,12 +141,14 @@ const RemoveBgTool = () => {
   const [bgMode, setBgMode] = useState('transparent'); // transparent | color | image
   const [bgColor, setBgColor] = useState('#ffffff');
   const [bgImage, setBgImage] = useState(null);     // custom background dataURL
+  const [subjectScale, setSubjectScale] = useState(100); // subject (foreground) size %
+  const [bgFit, setBgFit] = useState('cover');      // cover | contain | stretch
   const bgInputRef = useRef(null);
 
   const onFiles = (list) => {
     const f = list[0];
     setFile(f); setError(''); setCutout(null); setComposed(null);
-    setBgMode('transparent'); setBgImage(null);
+    setBgMode('transparent'); setBgImage(null); setSubjectScale(100); setBgFit('cover');
     setPreview(URL.createObjectURL(f));
   };
 
@@ -190,12 +192,31 @@ const RemoveBgTool = () => {
         await new Promise((res, rej) => { bg.onload = res; bg.onerror = rej; });
         const ir = bg.naturalWidth / bg.naturalHeight;
         const cr = canvas.width / canvas.height;
-        let dw, dh, dx, dy; // cover-fit the background
-        if (ir > cr) { dh = canvas.height; dw = dh * ir; dx = (canvas.width - dw) / 2; dy = 0; }
-        else { dw = canvas.width; dh = dw / ir; dx = 0; dy = (canvas.height - dh) / 2; }
-        ctx.drawImage(bg, dx, dy, dw, dh);
+        if (bgFit === 'stretch') {
+          ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
+        } else if (bgFit === 'contain') {
+          // fit the whole background inside the frame (letterbox the rest white)
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          let dw, dh, dx, dy;
+          if (ir > cr) { dw = canvas.width; dh = dw / ir; dx = 0; dy = (canvas.height - dh) / 2; }
+          else { dh = canvas.height; dw = dh * ir; dx = (canvas.width - dw) / 2; dy = 0; }
+          ctx.drawImage(bg, dx, dy, dw, dh);
+        } else { // cover
+          let dw, dh, dx, dy;
+          if (ir > cr) { dh = canvas.height; dw = dh * ir; dx = (canvas.width - dw) / 2; dy = 0; }
+          else { dw = canvas.width; dh = dw / ir; dx = 0; dy = (canvas.height - dh) / 2; }
+          ctx.drawImage(bg, dx, dy, dw, dh);
+        }
       }
-      ctx.drawImage(fg, 0, 0);
+      // Draw the subject (foreground) scaled by subjectScale, centred
+      // horizontally and anchored to the bottom so it "sits" in the background.
+      const s = Math.max(0.2, Math.min(1, subjectScale / 100));
+      const fw = fg.naturalWidth * s;
+      const fh = fg.naturalHeight * s;
+      const fx = (canvas.width - fw) / 2;
+      const fy = canvas.height - fh;
+      ctx.drawImage(fg, fx, fy, fw, fh);
       const transparent = bgMode === 'transparent';
       const type = transparent ? 'image/png' : 'image/jpeg';
       const ext = transparent ? 'png' : 'jpg';
@@ -206,9 +227,9 @@ const RemoveBgTool = () => {
       setComposed({ blob, url: URL.createObjectURL(blob), name: `${base}_${tag}.${ext}` });
     })();
     return () => { cancelled = true; };
-  }, [cutout, bgMode, bgColor, bgImage]);
+  }, [cutout, bgMode, bgColor, bgImage, subjectScale, bgFit]);
 
-  const reset = () => { setFile(null); setCutout(null); setComposed(null); setPreview(null); setBgImage(null); setBgMode('transparent'); };
+  const reset = () => { setFile(null); setCutout(null); setComposed(null); setPreview(null); setBgImage(null); setBgMode('transparent'); setSubjectScale(100); setBgFit('cover'); };
 
   if (cutout) {
     return (
@@ -250,6 +271,25 @@ const RemoveBgTool = () => {
                 <Icons.UploadCloud className="w-5 h-5 text-rose-500" /> {bgImage ? 'Change background image' : 'Upload background image'}
               </button>
               {!bgImage && <p className="hint">Pick a JPG or PNG to place behind your subject.</p>}
+            </Field>
+          )}
+
+          {bgMode === 'image' && bgImage && (
+            <Field label="Background fit">
+              <div className="flex gap-2 flex-wrap">
+                {[{ id: 'cover', l: 'Cover' }, { id: 'contain', l: 'Fit inside' }, { id: 'stretch', l: 'Stretch' }].map((m) => (
+                  <button key={m.id} data-testid={`bg-fit-${m.id}`} onClick={() => setBgFit(m.id)}
+                    className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${bgFit === m.id ? 'btn-primary text-white border-transparent' : 'border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5'}`}>{m.l}</button>
+                ))}
+              </div>
+              <p className="hint">Adjust how the background image fills the frame.</p>
+            </Field>
+          )}
+
+          {bgMode !== 'transparent' && (
+            <Field label={`Subject size: ${subjectScale}%`}>
+              <input data-testid="subject-size-slider" type="range" min="30" max="100" step="1" value={subjectScale} onChange={(e) => setSubjectScale(Number(e.target.value))} className="w-full accent-rose-500" />
+              <p className="hint">Shrink your subject so it fits neatly inside the background.</p>
             </Field>
           )}
 
