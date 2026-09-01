@@ -234,70 +234,77 @@ const RemoveBgTool = () => {
   if (cutout) {
     return (
       <Panel>
-        <div className="space-y-5" data-testid="removebg-result">
-          <div className="flex justify-center">
-            <div className="inline-block rounded-xl p-3 border border-slate-200 dark:border-white/10" style={bgMode === 'transparent' ? CHECKER : undefined}>
-              {composed
-                ? <img src={composed.url} alt="Result" className="max-h-72 object-contain" />
-                : <div className="h-40 w-40 grid place-items-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>}
+        <div className="grid lg:grid-cols-2 gap-6 items-start" data-testid="removebg-result">
+          {/* Preview — sticky so it stays visible while you adjust the options */}
+          <div className="sticky top-20 self-start z-10">
+            <div className="flex justify-center rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02] p-3">
+              <div className="inline-block rounded-xl p-3 border border-slate-200 dark:border-white/10" style={bgMode === 'transparent' ? CHECKER : undefined}>
+                {composed
+                  ? <img src={composed.url} alt="Result" className="max-h-[60vh] w-auto object-contain" />
+                  : <div className="h-52 w-52 grid place-items-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin" /></div>}
+              </div>
             </div>
+            <p className="hint text-center mt-2">Live preview — updates as you change the options.</p>
           </div>
 
-          <Field label="Background">
-            <div className="flex gap-2 flex-wrap">
-              {[{ id: 'transparent', l: 'Transparent' }, { id: 'color', l: 'Solid colour' }, { id: 'image', l: 'Custom image' }].map((m) => (
-                <button key={m.id} data-testid={`bg-mode-${m.id}`} onClick={() => setBgMode(m.id)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${bgMode === m.id ? 'btn-primary text-white border-transparent' : 'border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5'}`}>{m.l}</button>
-              ))}
-            </div>
-          </Field>
-
-          {bgMode === 'color' && (
-            <Field label="Background colour">
-              <div className="flex items-center gap-2 flex-wrap">
-                <input data-testid="bg-color-picker" type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="w-12 h-10 rounded-lg border border-slate-200 dark:border-white/10 cursor-pointer bg-transparent" />
-                {BG_SWATCHES.map((c) => (
-                  <button key={c} data-testid={`bg-swatch-${c}`} onClick={() => setBgColor(c)} className={`w-7 h-7 rounded-full border-2 ${bgColor.toLowerCase() === c ? 'border-rose-500' : 'border-slate-200 dark:border-white/20'}`} style={{ backgroundColor: c }} />
-                ))}
-              </div>
-            </Field>
-          )}
-
-          {bgMode === 'image' && (
-            <Field label="Custom background image">
-              <input ref={bgInputRef} data-testid="bg-image-input" type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={onBgImage} />
-              <button data-testid="bg-image-upload-btn" onClick={() => bgInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-slate-200 dark:border-white/10 hover:border-rose-400 text-sm font-semibold text-slate-600 dark:text-slate-300">
-                <Icons.UploadCloud className="w-5 h-5 text-rose-500" /> {bgImage ? 'Change background image' : 'Upload background image'}
-              </button>
-              {!bgImage && <p className="hint">Pick a JPG or PNG to place behind your subject.</p>}
-            </Field>
-          )}
-
-          {bgMode === 'image' && bgImage && (
-            <Field label="Background fit">
+          {/* Controls */}
+          <div className="space-y-5">
+            <Field label="Background">
               <div className="flex gap-2 flex-wrap">
-                {[{ id: 'cover', l: 'Cover' }, { id: 'contain', l: 'Fit inside' }, { id: 'stretch', l: 'Stretch' }].map((m) => (
-                  <button key={m.id} data-testid={`bg-fit-${m.id}`} onClick={() => setBgFit(m.id)}
-                    className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${bgFit === m.id ? 'btn-primary text-white border-transparent' : 'border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5'}`}>{m.l}</button>
+                {[{ id: 'transparent', l: 'Transparent' }, { id: 'color', l: 'Solid colour' }, { id: 'image', l: 'Custom image' }].map((m) => (
+                  <button key={m.id} data-testid={`bg-mode-${m.id}`} onClick={() => setBgMode(m.id)}
+                    className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${bgMode === m.id ? 'btn-primary text-white border-transparent' : 'border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5'}`}>{m.l}</button>
                 ))}
               </div>
-              <p className="hint">Adjust how the background image fills the frame.</p>
             </Field>
-          )}
 
-          {bgMode !== 'transparent' && (
-            <Field label={`Subject size: ${subjectScale}%`}>
-              <input data-testid="subject-size-slider" type="range" min="30" max="100" step="1" value={subjectScale} onChange={(e) => setSubjectScale(Number(e.target.value))} className="w-full accent-rose-500" />
-              <p className="hint">Shrink your subject so it fits neatly inside the background.</p>
-            </Field>
-          )}
+            {bgMode === 'color' && (
+              <Field label="Background colour">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input data-testid="bg-color-picker" type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="w-12 h-10 rounded-lg border border-slate-200 dark:border-white/10 cursor-pointer bg-transparent" />
+                  {BG_SWATCHES.map((c) => (
+                    <button key={c} data-testid={`bg-swatch-${c}`} onClick={() => setBgColor(c)} className={`w-7 h-7 rounded-full border-2 ${bgColor.toLowerCase() === c ? 'border-rose-500' : 'border-slate-200 dark:border-white/20'}`} style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+              </Field>
+            )}
 
-          <button data-testid="download-nobg-btn" disabled={!composed} onClick={() => composed && downloadBlob(composed.blob, composed.name)}
-            className="w-full btn-primary text-white font-semibold py-4 rounded-xl inline-flex items-center justify-center gap-2 disabled:opacity-70">
-            <Download className="w-4 h-4" /> Download {bgMode === 'transparent' ? 'transparent PNG' : 'image'}
-          </button>
-          <div className="text-center"><button onClick={reset} className="text-sm text-rose-500 font-semibold inline-flex items-center gap-1"><RefreshCw className="w-3.5 h-3.5" /> Try another photo</button></div>
+            {bgMode === 'image' && (
+              <Field label="Custom background image">
+                <input ref={bgInputRef} data-testid="bg-image-input" type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={onBgImage} />
+                <button data-testid="bg-image-upload-btn" onClick={() => bgInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-slate-200 dark:border-white/10 hover:border-rose-400 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                  <Icons.UploadCloud className="w-5 h-5 text-rose-500" /> {bgImage ? 'Change background image' : 'Upload background image'}
+                </button>
+                {!bgImage && <p className="hint">Pick a JPG or PNG to place behind your subject.</p>}
+              </Field>
+            )}
+
+            {bgMode === 'image' && bgImage && (
+              <Field label="Background fit">
+                <div className="flex gap-2 flex-wrap">
+                  {[{ id: 'cover', l: 'Cover' }, { id: 'contain', l: 'Fit inside' }, { id: 'stretch', l: 'Stretch' }].map((m) => (
+                    <button key={m.id} data-testid={`bg-fit-${m.id}`} onClick={() => setBgFit(m.id)}
+                      className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${bgFit === m.id ? 'btn-primary text-white border-transparent' : 'border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5'}`}>{m.l}</button>
+                  ))}
+                </div>
+                <p className="hint">Adjust how the background image fills the frame.</p>
+              </Field>
+            )}
+
+            {bgMode !== 'transparent' && (
+              <Field label={`Subject size: ${subjectScale}%`}>
+                <input data-testid="subject-size-slider" type="range" min="30" max="100" step="1" value={subjectScale} onChange={(e) => setSubjectScale(Number(e.target.value))} className="w-full accent-rose-500" />
+                <p className="hint">Shrink your subject so it fits neatly inside the background.</p>
+              </Field>
+            )}
+
+            <button data-testid="download-nobg-btn" disabled={!composed} onClick={() => composed && downloadBlob(composed.blob, composed.name)}
+              className="w-full btn-primary text-white font-semibold py-4 rounded-xl inline-flex items-center justify-center gap-2 disabled:opacity-70">
+              <Download className="w-4 h-4" /> Download {bgMode === 'transparent' ? 'transparent PNG' : 'image'}
+            </button>
+            <div className="text-center"><button onClick={reset} className="text-sm text-rose-500 font-semibold inline-flex items-center gap-1"><RefreshCw className="w-3.5 h-3.5" /> Try another photo</button></div>
+          </div>
         </div>
       </Panel>
     );
